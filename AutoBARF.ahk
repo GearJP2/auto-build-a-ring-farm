@@ -1,39 +1,31 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Global state variables
+; ตัวแปรควบคุมสถานะหลัก
 IsRunning := false
-SelectedTask := "Seeds" ; Default task selection
-CurrentStep := 0        ; Track seed state machine steps
-EggLoopCounter := 0     ; Track egg loops
+SelectedTask := "Seeds" 
+CurrentStep := 0        
+EggLoopCounter := 0     
 
 ; ==========================================
 ; CREATE THE USER INTERFACE (GUI)
 ; ==========================================
 MainGui := Gui("+AlwaysOnTop -MaximizeBox", "Build A Ring: Multi-Farm")
-
-; Set default font style
 MainGui.SetFont("s10", "Segoe UI")
 
-; Header text block (FIXED: Set weight cleanly via SetFont)
 MainGui.SetFont("Bold")
 MainGui.Add("Text", "w220 Center", "Select Your Automation Task")
-MainGui.SetFont("Norm") ; Revert to regular font for the rest of the controls
+MainGui.SetFont("Norm") 
 
-; Radio button selections for the tasks
-RadioSeeds := MainGui.Add("Radio", "vTaskGroup checked y+15 x25", "Auto-Buy Seeds (State Machine)")
+RadioSeeds := MainGui.Add("Radio", "vTaskGroup checked y+15 x25", "Auto-Buy Seeds (Balanced Walk)")
 RadioEggs := MainGui.Add("Radio", "x25 y+10", "Auto-Buy Eggs (15-Loop Sequence)")
 
-; Event bindings when switching tasks
 RadioSeeds.OnEvent("Click", (*) => SetTask("Seeds"))
 RadioEggs.OnEvent("Click", (*) => SetTask("Eggs"))
 
-MainGui.Add("Text", "w220 h2 0x10 y+15 x15") ; Horizontal separator visual line
-
-; Control instructions panel
+MainGui.Add("Text", "w220 h2 0x10 y+15 x15") 
 MainGui.Add("Text", "w220 Center cGray y+10", "[F1] to Start / Pause`n[F4] to Safe Exit")
 
-; Status tracker bar label (FIXED: Set weight cleanly via SetFont)
 MainGui.SetFont("Bold")
 StatusText := MainGui.Add("Text", "w220 Center cRed y+15", "STATUS: IDLE")
 MainGui.SetFont("Norm")
@@ -48,12 +40,11 @@ MainGui.Show("w250 h210")
 SetTask(TaskName) {
     global SelectedTask, IsRunning
     if (IsRunning) {
-        ToggleFarm() ; Force pause if user changes selection mid-run
+        ToggleFarm() 
     }
     SelectedTask := TaskName
 }
 
-; --- Hotkey F1: Start / Pause ---
 ~F1:: ToggleFarm()
 
 ToggleFarm() {
@@ -66,9 +57,13 @@ ToggleFarm() {
         StatusText.SetFont("cGreen")
         
         if (SelectedTask == "Seeds") {
-            CurrentStep := 1 ; Start state machine at step 1
+            ResetCameraForSeeds() ; <--- เรียกใช้ระบบล็อกกล้องด้วยคีย์บอร์ดแบบใหม่
+            Sleep(500)
+            CurrentStep := 1 
             SetTimer(FarmManager, 10)
         } else if (SelectedTask == "Eggs") {
+            ResetCameraForEggs()  
+            Sleep(500)
             ToolTip("บอทเริ่มทำงานแล้ว (F1 เพื่อหยุด)", 10, 10)
             SetTimer(MainEggLoop, 10)
         }
@@ -77,11 +72,9 @@ ToggleFarm() {
         StatusText.Text := "STATUS: PAUSED"
         StatusText.SetFont("cRed")
         
-        ; Turn off all loops/timers
         SetTimer(FarmManager, 0)
         SetTimer(MainEggLoop, 0)
         
-        ; Clear all potential stuck keystrokes immediately
         Send("{w up}{s up}{a up}{d up}{e up}")
         ToolTip("หยุดบอทชั่วคราว")
         Sleep 500
@@ -89,7 +82,6 @@ ToggleFarm() {
     }
 }
 
-; --- Hotkey F4: Emergency Close App ---
 ~F4:: CleanExit()
 
 CleanExit() {
@@ -102,9 +94,59 @@ CleanExit() {
     ExitApp()
 }
 
+; ==========================================
+; NEW KEYBOARD-BASED CAMERA SYSTEM (แก้ปัญหากล้องไม่หัน)
+; ==========================================
+
+ResetCameraForSeeds() {
+    if !WinActive("ahk_exe RobloxPlayerBeta.exe")
+        return
+        
+    ToolTip("กำลังปรับมุมกล้องดิ่งลงพื้น (ด้วยคีย์บอร์ด)...")
+    
+    ; 1. กดซูมออกก่อนกันบั๊ก
+    Loop 4 {
+        Send("{o}")
+        Sleep(30)
+    }
+    
+    ; 2. กดปุ่มลูกศรลง (Down Arrow) ค้างไว้ 1.5 วินาที เพื่อหมุนกล้องก้มมองพื้นสนิท 100%
+    Send("{Down down}")
+    Sleep(1500)
+    Send("{Down up}")
+    Sleep(100)
+    
+    ; 3. กดซูมเข้า (I) รัวๆ เพื่อเข้าโหมด First Person บังคับมุมมองตั้งฉาก 90 องศาตรงๆ
+    Loop 12 {
+        Send("{i}")
+        Sleep(30)
+    }
+    ToolTip("")
+}
+
+ResetCameraForEggs() {
+    if !WinActive("ahk_exe RobloxPlayerBeta.exe")
+        return
+
+    ToolTip("กำลังปรับมุมกล้องสำหรับ ซื้อไข่...")
+    Loop 8 {
+        Send("{o}")
+        Sleep(30)
+    }
+    
+    ; เปิด Shift Lock (ตัวละครหันหน้าตรงเป๊ะ)
+    Send("{Shift}") 
+    Sleep(100)
+    
+    ; กดลูกศรลงนิดเดียวเพื่อให้มุมกล้องก้มระนาบตู้ไข่พอดี
+    Send("{Down down}")
+    Sleep(300)
+    Send("{Down up}")
+    ToolTip("")
+}
 
 ; ==========================================
-; TASK 1: AUTO-BUY SEEDS (STATE MACHINE)
+; TASK 1: AUTO-BUY SEEDS (เปลี่ยนเป็นเดินสั้น 2 รอบ)
 ; ==========================================
 
 FarmManager() {
@@ -114,8 +156,7 @@ FarmManager() {
         return
     }
     
-    ; Pause timer to let current step process safely without overlap
-    SetTimer(FarmManager, 0)
+    SetTimer(FarmManager, 0) 
     
     switch CurrentStep {
         case 1: ; ดึงคันโยก (กดค้าง 0.75 วินาที)
@@ -129,30 +170,32 @@ FarmManager() {
         case 3: ; เดินไปแท่นกลางหน้า
             Move("w", 400)
             NextStep(3, 200)
-        case 4: ; ซื้อแท่นกลางหน้า (กดค้าง 0.75 วินาที)
+        case 4: ; ซื้อแท่นกลางหน้า
             HoldE(750)
             NextStep(4, 200)
             
         case 5: ; เดินไปแท่นซ้ายหน้า
-            Move("a", 400)
+            Move("a", 450) ; ออกซ้ายครั้งที่ 1 (450ms)
             NextStep(5, 200)
         case 6: ; ซื้อแท่นซ้ายหน้า
             HoldE(750)
             NextStep(6, 200)
             
-        case 7: ; เดินไปแท่นขวาหน้า
-            Move("d", 800)
+        case 7: ; [แก้ไข] เปลี่ยนจากลากยาว 900ms เป็น ซอยเดินขวาสั้น ๆ 2 รอบแทน
+            Move("d", 450) ; เดินขวารอบที่ 1 เพื่อกลับมาตรงกลาง
+            Sleep(100)     ; เบรกสั้นลดแรงเฉื่อยตัวละคร
+            Move("d", 450) ; เดินขวารอบที่ 2 เพื่อข้ามไปแท่นขวา
             NextStep(7, 200)
         case 8: ; ซื้อแท่นขวาหน้า
             HoldE(750)
             NextStep(8, 200)
             
         case 9: ; เดินกลับมาตั้งหลักตรงกลางแถวหน้า
-            Move("a", 400)
+            Move("a", 450) ; กดซ้ายกลับเข้ากลาง 
             NextStep(9, 200)
             
         ; --- แถวที่ 2 (3 แท่นหลัง) ---
-        case 10: ; เดินขึ้นไปแถวหลัง (แท่นกลางหลัง)
+        case 10: ; เดินขึ้นไปแถวหลัง
             Move("w", 450)
             NextStep(10, 200)
         case 11: ; ซื้อแท่นกลางหลัง
@@ -160,22 +203,24 @@ FarmManager() {
             NextStep(11, 200)
             
         case 12: ; เดินไปแท่นขวาหลัง
-            Move("d", 400)
+            Move("d", 450) ; ออกขวาครั้งที่ 1 (450ms)
             NextStep(12, 200)
         case 13: ; ซื้อแท่นขวาหลัง
             HoldE(750)
             NextStep(13, 200)
             
-        case 14: ; เดินไปแท่นซ้ายหลัง
-            Move("a", 800)
+        case 14: ; [แก้ไข] เปลี่ยนจากลากยาว 900ms เป็น ซอยเดินซ้ายสั้น ๆ 2 รอบแทน
+            Move("a", 450) ; เดินซ้ายรอบที่ 1 เพื่อกลับมาตรงกลาง
+            Sleep(100)     ; เบรกสั้นลดแรงเฉื่อยตัวละคร
+            Move("a", 450) ; เดินซ้ายรอบที่ 2 เพื่อข้ามไปแท่นซ้าย
             NextStep(14, 200)
         case 15: ; ซื้อแท่นซ้ายหลัง
             HoldE(750)
             NextStep(15, 200)
             
         case 16: ; เดินกลับมาตั้งหลักตรงกลางแถวหลัง
-            Move("d", 400)
-            NextStep(16, 200)
+            Move("d", 450) ; กดขวากลับเข้ากลาง 
+            NextStep(16, 250)
             
         ; --- เดินกลับจุดเริ่มต้น ---
         case 17: ; ถอยหลังยาวกลับไปที่คันโยก
@@ -183,7 +228,7 @@ FarmManager() {
             NextStep(17, 200)
             
         case 18: ; พัก 1 วินาทีก่อนเริ่มรอบใหม่
-            CurrentStep := 1 ; รีเซ็ตกลับไปขั้นตอนที่ 1
+            CurrentStep := 1 
             if (IsRunning && SelectedTask == "Seeds") {
                 SetTimer(FarmManager, 1000)
             }
@@ -210,7 +255,6 @@ HoldE(duration) {
     Send("{e up}")
 }
 
-
 ; ==========================================
 ; TASK 2: AUTO-BUY EGGS (15-LOOP ENGINE)
 ; ==========================================
@@ -221,30 +265,23 @@ MainEggLoop() {
     if (!IsRunning || SelectedTask != "Eggs" || !WinActive("ahk_exe RobloxPlayerBeta.exe"))
         return
 
-    ; Stop timer temporarily while running structural loop blocks
-    SetTimer(MainEggLoop, 0)
+    SetTimer(MainEggLoop, 0) 
 
-    ; ** ส่วนที่เพิ่มใหม่: มาถึงที่จุดเริ่มต้นปุ๊บ กด E ค้าง 1 วินาทีก่อนทันที **
     Send("{e down}")
     Sleep(1000)
     Send("{e up}")
-    Sleep(150) ; เว้นจังหวะสั้นๆ ก่อนเริ่มเดิน
+    Sleep(150) 
     
-    ; ลูปเดิมของคุณ (ทำทั้งหมด 15 รอบ)
     EggLoopCounter := 0
     while (EggLoopCounter < 15) {
         if (!IsRunning)
             break
             
-        ; send e down 
         Send("{e down}")
         Sleep(1000)
-        
-        ; send e up
         Send("{e up}")
         Sleep(100)
         
-        ; for(i in 3) send w down send w up
         Loop 3 {
             if (!IsRunning)
                 break
@@ -257,28 +294,21 @@ MainEggLoop() {
         if (!IsRunning)
             break
 
-        ; send e down 
         Send("{e down}")
         Sleep(1000)
-        
-        ; send e up
         Send("{e up}")
         Sleep(100) 
         
         EggLoopCounter++
     } 
 
-    ; send s down (ถอยหลังกลับยาวๆ 10 วินาที)
     if (IsRunning) {
         Send("{s down}")
         Sleep(10000)
         Send("{s up}")
-        
-        ; พัก 1 วินาที ก่อนที่ SetTimer จะวนลูปกลับไปทำใหม่ตั้งแต่ต้น
         Sleep(1000) 
     }
 
-    ; Reactivate timer if user hasn't paused macro mid-execution
     if (IsRunning && SelectedTask == "Eggs") {
         SetTimer(MainEggLoop, 10)
     }
