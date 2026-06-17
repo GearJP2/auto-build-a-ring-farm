@@ -17,8 +17,8 @@ MainGui.SetFont("Bold")
 MainGui.Add("Text", "w220 Center", "Select Your Automation Task")
 MainGui.SetFont("Norm") 
 
-RadioSeeds := MainGui.Add("Radio", "vTaskGroup checked y+15 x25", "Auto-Buy Seeds (Balanced Walk)")
-RadioEggs := MainGui.Add("Radio", "x25 y+10", "Auto-Buy Eggs (15-Loop Sequence)")
+RadioSeeds := MainGui.Add("Radio", "vTaskGroup checked y+15 x25", "Auto-Buy Seeds")
+RadioEggs := MainGui.Add("Radio", "x25 y+10", "Auto-Buy Eggs")
 
 RadioSeeds.OnEvent("Click", (*) => SetTask("Seeds"))
 RadioEggs.OnEvent("Click", (*) => SetTask("Eggs"))
@@ -57,13 +57,9 @@ ToggleFarm() {
         StatusText.SetFont("cGreen")
         
         if (SelectedTask == "Seeds") {
-            ResetCameraForSeeds() ; <--- เรียกใช้ระบบล็อกกล้องด้วยคีย์บอร์ดแบบใหม่
-            Sleep(500)
             CurrentStep := 1 
             SetTimer(FarmManager, 10)
         } else if (SelectedTask == "Eggs") {
-            ResetCameraForEggs()  
-            Sleep(500)
             ToolTip("บอทเริ่มทำงานแล้ว (F1 เพื่อหยุด)", 10, 10)
             SetTimer(MainEggLoop, 10)
         }
@@ -94,59 +90,9 @@ CleanExit() {
     ExitApp()
 }
 
-; ==========================================
-; NEW KEYBOARD-BASED CAMERA SYSTEM (แก้ปัญหากล้องไม่หัน)
-; ==========================================
-
-ResetCameraForSeeds() {
-    if !WinActive("ahk_exe RobloxPlayerBeta.exe")
-        return
-        
-    ToolTip("กำลังปรับมุมกล้องดิ่งลงพื้น (ด้วยคีย์บอร์ด)...")
-    
-    ; 1. กดซูมออกก่อนกันบั๊ก
-    Loop 4 {
-        Send("{o}")
-        Sleep(30)
-    }
-    
-    ; 2. กดปุ่มลูกศรลง (Down Arrow) ค้างไว้ 1.5 วินาที เพื่อหมุนกล้องก้มมองพื้นสนิท 100%
-    Send("{Down down}")
-    Sleep(1500)
-    Send("{Down up}")
-    Sleep(100)
-    
-    ; 3. กดซูมเข้า (I) รัวๆ เพื่อเข้าโหมด First Person บังคับมุมมองตั้งฉาก 90 องศาตรงๆ
-    Loop 12 {
-        Send("{i}")
-        Sleep(30)
-    }
-    ToolTip("")
-}
-
-ResetCameraForEggs() {
-    if !WinActive("ahk_exe RobloxPlayerBeta.exe")
-        return
-
-    ToolTip("กำลังปรับมุมกล้องสำหรับ ซื้อไข่...")
-    Loop 8 {
-        Send("{o}")
-        Sleep(30)
-    }
-    
-    ; เปิด Shift Lock (ตัวละครหันหน้าตรงเป๊ะ)
-    Send("{Shift}") 
-    Sleep(100)
-    
-    ; กดลูกศรลงนิดเดียวเพื่อให้มุมกล้องก้มระนาบตู้ไข่พอดี
-    Send("{Down down}")
-    Sleep(300)
-    Send("{Down up}")
-    ToolTip("")
-}
 
 ; ==========================================
-; TASK 1: AUTO-BUY SEEDS (เปลี่ยนเป็นเดินสั้น 2 รอบ)
+; TASK 1: AUTO-BUY SEEDS (โครงสร้างเดิม แก้ไขจังหวะข้ามฝั่ง)
 ; ==========================================
 
 FarmManager() {
@@ -170,32 +116,32 @@ FarmManager() {
         case 3: ; เดินไปแท่นกลางหน้า
             Move("w", 400)
             NextStep(3, 200)
-        case 4: ; ซื้อแท่นกลางหน้า
+        case 4: ; ซื้อแท่นกลางหน้า (กดค้าง 0.75 วินาที)
             HoldE(750)
             NextStep(4, 200)
             
         case 5: ; เดินไปแท่นซ้ายหน้า
-            Move("a", 450) ; ออกซ้ายครั้งที่ 1 (450ms)
+            Move("a", 400)
             NextStep(5, 200)
         case 6: ; ซื้อแท่นซ้ายหน้า
             HoldE(750)
             NextStep(6, 200)
             
-        case 7: ; [แก้ไข] เปลี่ยนจากลากยาว 900ms เป็น ซอยเดินขวาสั้น ๆ 2 รอบแทน
-            Move("d", 450) ; เดินขวารอบที่ 1 เพื่อกลับมาตรงกลาง
-            Sleep(100)     ; เบรกสั้นลดแรงเฉื่อยตัวละคร
-            Move("d", 450) ; เดินขวารอบที่ 2 เพื่อข้ามไปแท่นขวา
+        case 7: ; [แก้ไข] เปลี่ยนจากขวายาว 800 เป็น ขวาสั้นสองจังหวะ (400 + 400)
+            Move("d", 400) ; จังหวะที่ 1 กลับมาตรงกลาง
+            Sleep(100)     ; หยุดพักสั้นๆ ลดแรงเฉื่อย
+            Move("d", 400) ; จังหวะที่ 2 ไปแท่นขวา
             NextStep(7, 200)
         case 8: ; ซื้อแท่นขวาหน้า
             HoldE(750)
             NextStep(8, 200)
             
         case 9: ; เดินกลับมาตั้งหลักตรงกลางแถวหน้า
-            Move("a", 450) ; กดซ้ายกลับเข้ากลาง 
+            Move("a", 400)
             NextStep(9, 200)
             
         ; --- แถวที่ 2 (3 แท่นหลัง) ---
-        case 10: ; เดินขึ้นไปแถวหลัง
+        case 10: ; เดินขึ้นไปแถวหลัง (แท่นกลางหลัง)
             Move("w", 450)
             NextStep(10, 200)
         case 11: ; ซื้อแท่นกลางหลัง
@@ -203,24 +149,24 @@ FarmManager() {
             NextStep(11, 200)
             
         case 12: ; เดินไปแท่นขวาหลัง
-            Move("d", 450) ; ออกขวาครั้งที่ 1 (450ms)
+            Move("d", 400)
             NextStep(12, 200)
         case 13: ; ซื้อแท่นขวาหลัง
             HoldE(750)
             NextStep(13, 200)
             
-        case 14: ; [แก้ไข] เปลี่ยนจากลากยาว 900ms เป็น ซอยเดินซ้ายสั้น ๆ 2 รอบแทน
-            Move("a", 450) ; เดินซ้ายรอบที่ 1 เพื่อกลับมาตรงกลาง
-            Sleep(100)     ; เบรกสั้นลดแรงเฉื่อยตัวละคร
-            Move("a", 450) ; เดินซ้ายรอบที่ 2 เพื่อข้ามไปแท่นซ้าย
+        case 14: ; [แก้ไข] เปลี่ยนจากซ้ายยาว 800 เป็น ซ้ายสั้นสองจังหวะ (400 + 400)
+            Move("a", 400) ; จังหวะที่ 1 กลับมาตรงกลาง
+            Sleep(100)     ; หยุดพักสั้นๆ ลดแรงเฉื่อย
+            Move("a", 400) ; จังหวะที่ 2 ไปแท่นซ้าย
             NextStep(14, 200)
         case 15: ; ซื้อแท่นซ้ายหลัง
             HoldE(750)
             NextStep(15, 200)
             
         case 16: ; เดินกลับมาตั้งหลักตรงกลางแถวหลัง
-            Move("d", 450) ; กดขวากลับเข้ากลาง 
-            NextStep(16, 250)
+            Move("d", 400)
+            NextStep(16, 200)
             
         ; --- เดินกลับจุดเริ่มต้น ---
         case 17: ; ถอยหลังยาวกลับไปที่คันโยก
@@ -254,6 +200,7 @@ HoldE(duration) {
     Sleep(duration)
     Send("{e up}")
 }
+
 
 ; ==========================================
 ; TASK 2: AUTO-BUY EGGS (15-LOOP ENGINE)
